@@ -1,7 +1,0 @@
-{
-    "files.associations": {
-        "istream": "cpp",
-        "locale": "cpp"
-    },
-    "editor.tabSize": 2,
-}
