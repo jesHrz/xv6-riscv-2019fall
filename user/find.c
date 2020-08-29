@@ -117,8 +117,8 @@ find(char *path, char *re)
 int main(int argc, char *argv[]) {
   if(argc < 3) {
       fprintf(2, "Usage: find root filename\n");
-      exit();
+      exit(0);
   }
   find(argv[1], argv[2]);
-  exit();
+  exit(0);
 }

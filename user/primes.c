@@ -8,20 +8,20 @@ void solve(int input_fd) {
 
     if(!read(input_fd, &p, sizeof(int))) {
         fprintf(2, "pipe exit\n");
-        exit();
+        exit(0);
     }
 
     printf("prime %d\n", p);
 
     if(pipe(fd) < 0) {
         fprintf(2, "pipe err\n");
-        exit();
+        exit(0);
     }
 
     pid = fork();
     if(pid < 0) {
         fprintf(2, "fork err\n");
-        exit();
+        exit(0);
     }
     if(pid == 0) {
         close(fd[1]);
@@ -45,13 +45,13 @@ int main(void) {
 
     if(pipe(fd) < 0) {
         fprintf(2, "pipe err\n");
-        exit();
+        exit(0);
     }
 
     pid = fork();
     if(pid < 0) {
         fprintf(2, "fork err\n");
-        exit();
+        exit(0);
     }
     if(pid == 0) {
         close(fd[1]);
@@ -61,10 +61,10 @@ int main(void) {
         for(i = 2; i <= 35; ++i) {
             if(write(fd[1], &i, 4) != 4) {
                 fprintf(2, "write err\n");
-                exit();
+                exit(0);
             }
         }
     }
     
-    exit();
+    exit(0);
 }

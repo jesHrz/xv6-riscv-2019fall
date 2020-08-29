@@ -5,7 +5,7 @@
 int main(int argc, char *argv[]) {
   if(argc < 2) {
     fprintf(2, "Usage: xargs <commands>\n");
-    exit();
+    exit(0);
   }
 
   int i, myargc;
@@ -42,13 +42,13 @@ endline:
     pid = fork();
     if(pid < 0) {
       fprintf(2, "fork err\n");
-      exit();
+      exit(0);
     }
     if(pid == 0) {
       exec(myargv[0], myargv);
     } else {
-      wait();
+      wait(0);
     }
   }
-  exit();
+  exit(0);
 }

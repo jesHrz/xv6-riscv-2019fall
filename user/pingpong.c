@@ -11,7 +11,7 @@ int main(void) {
     int spid = fork();
     if(spid < 0) {
         fprintf(2, "fork err\n");
-        exit();
+        exit(0);
     }
     if(spid == 0) {
         read(parent_fd[0], buf, 4);
@@ -22,5 +22,5 @@ int main(void) {
         read(child_fd[0], buf, 4);
         printf("%d: received %s\n", getpid(), buf);
     }
-    exit();
+    exit(0);
 }
