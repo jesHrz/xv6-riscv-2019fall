@@ -262,6 +262,8 @@ fork(void)
     return -1;
   }
   np->sz = p->sz;
+  // lab4: clone ustack field
+  np->ustack = p->ustack;
 
   np->parent = p;
 

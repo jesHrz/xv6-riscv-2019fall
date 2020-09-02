@@ -75,6 +75,9 @@ sys_read(void)
 
   if(argfd(0, 0, &f) < 0 || argint(2, &n) < 0 || argaddr(1, &p) < 0)
     return -1;
+  if(p >= myproc()->sz || (myproc()->ustack - PGSIZE <= p && p < myproc()->ustack) || 
+      uvmchkaddr(myproc()->pagetable, p, n) < 0)
+    return -1;
   return fileread(f, p, n);
 }
 
@@ -86,6 +89,10 @@ sys_write(void)
   uint64 p;
 
   if(argfd(0, 0, &f) < 0 || argint(2, &n) < 0 || argaddr(1, &p) < 0)
+    return -1;
+  
+  if(p >= myproc()->sz || (myproc()->ustack - PGSIZE <= p && p < myproc()->ustack) || 
+      uvmchkaddr(myproc()->pagetable, p, n) < 0)
     return -1;
 
   return filewrite(f, p, n);
@@ -461,6 +468,9 @@ sys_pipe(void)
   struct proc *p = myproc();
 
   if(argaddr(0, &fdarray) < 0)
+    return -1;
+  if(fdarray >= myproc()->sz || (myproc()->ustack - PGSIZE <= fdarray && fdarray < myproc()->ustack) || 
+      uvmchkaddr(myproc()->pagetable, fdarray, sizeof(fd0) + sizeof(fd1)) < 0)
     return -1;
   if(pipealloc(&rf, &wf) < 0)
     return -1;

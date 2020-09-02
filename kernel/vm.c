@@ -187,11 +187,14 @@ uvmunmap(pagetable_t pagetable, uint64 va, uint64 size, int do_free)
   a = PGROUNDDOWN(va);
   last = PGROUNDDOWN(va + size - 1);
   for(;;){
-    if((pte = walk(pagetable, a, 0)) == 0)
-      panic("uvmunmap: walk");
+    if((pte = walk(pagetable, a, 0)) == 0) {
+      // panic("uvmunmap: walk");
+      goto nextpage;
+    }
     if((*pte & PTE_V) == 0){
-      printf("va=%p pte=%p\n", a, *pte);
-      panic("uvmunmap: not mapped");
+      // printf("va=%p pte=%p\n", a, *pte);
+      // panic("uvmunmap: not mapped");
+      goto nextpage;
     }
     if(PTE_FLAGS(*pte) == PTE_V)
       panic("uvmunmap: not a leaf");
@@ -200,6 +203,7 @@ uvmunmap(pagetable_t pagetable, uint64 va, uint64 size, int do_free)
       kfree((void*)pa);
     }
     *pte = 0;
+nextpage:
     if(a == last)
       break;
     a += PGSIZE;
@@ -326,9 +330,9 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
 
   for(i = 0; i < sz; i += PGSIZE){
     if((pte = walk(old, i, 0)) == 0)
-      panic("uvmcopy: pte should exist");
+      continue; // panic("uvmcopy: pte should exist");
     if((*pte & PTE_V) == 0)
-      panic("uvmcopy: page not present");
+      continue; // panic("uvmcopy: page not present");
     pa = PTE2PA(*pte);
     flags = PTE_FLAGS(*pte);
     if((mem = kalloc()) == 0)
@@ -450,4 +454,50 @@ copyinstr(pagetable_t pagetable, char *dst, uint64 srcva, uint64 max)
   } else {
     return -1;
   }
+}
+
+
+
+void vmprint_walk(pagetable_t pagetable, int level) {
+  for(int i = 0; i < 512; ++i){
+    pte_t pte = pagetable[i];
+    if(pte & PTE_V) {
+      for(int j = 0; j < level; ++j) {
+        printf(" ..");
+      }
+      printf("%d: pte %p pa %p\n", i, pte, PTE2PA(pte));
+      if((pte & (PTE_R|PTE_W|PTE_X)) == 0) {
+        // this PTE points to a lower-level page table.
+        vmprint_walk((pagetable_t)PTE2PA(pte), level + 1);
+      }
+    }
+  }
+}
+
+void vmprint(pagetable_t pagetable) {
+  printf("page table %p\n", pagetable);
+  vmprint_walk(pagetable, 1);
+}
+
+int uvmchkaddr(pagetable_t pagetable, uint64 addr, uint64 size) {
+  uint64 a, end;
+  pte_t *pte;
+  char *mem;
+
+  a = PGROUNDDOWN(addr);
+  end = PGROUNDUP(addr + size);
+  for(; a < end; a += PGSIZE) {
+    if((pte = walk(pagetable, a, 1)) != 0 && (*pte & PTE_V))
+      continue;
+    if((mem = kalloc()) == 0) {
+      return -1;
+    }
+    memset(mem, 0, PGSIZE);
+    if(mappages(pagetable, a, PGSIZE, (uint64)mem, PTE_W|PTE_X|PTE_R|PTE_U) != 0) {
+      kfree(mem);
+      return -1;
+    }
+  }
+
+  return 0;
 }
