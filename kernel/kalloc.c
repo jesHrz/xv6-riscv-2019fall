@@ -21,13 +21,18 @@ struct run {
 struct {
   struct spinlock lock;
   struct run *freelist;
+  int *refs;
 } kmem;
+
+#define REFIDX(pa) (((uint64)pa - (uint64)end) >> PGSHIFT)
 
 void
 kinit()
 {
   initlock(&kmem.lock, "kmem");
-  freerange(end, (void*)PHYSTOP);
+  kmem.refs = (int *)end;
+  int refs_size = (REFIDX(PHYSTOP) + 1) * sizeof(int);
+  freerange(end + refs_size, (void*)PHYSTOP);
 }
 
 void
@@ -59,6 +64,7 @@ kfree(void *pa)
   acquire(&kmem.lock);
   r->next = kmem.freelist;
   kmem.freelist = r;
+  kmem.refs[REFIDX(pa)] = 0;
   release(&kmem.lock);
 }
 
@@ -72,11 +78,33 @@ kalloc(void)
 
   acquire(&kmem.lock);
   r = kmem.freelist;
-  if(r)
+  if(r) {
     kmem.freelist = r->next;
+    kmem.refs[REFIDX(r)] = 1;
+  }
   release(&kmem.lock);
 
   if(r)
     memset((char*)r, 5, PGSIZE); // fill with junk
   return (void*)r;
+}
+
+void
+klink(void *pa)
+{
+  acquire(&kmem.lock);
+  kmem.refs[REFIDX(pa)]++;
+  release(&kmem.lock);
+}
+
+void
+kunlink(void *pa)
+{
+  acquire(&kmem.lock);
+  if(--kmem.refs[REFIDX(pa)] == 0) {
+    release(&kmem.lock);
+    kfree(pa);
+    return;
+  }
+  release(&kmem.lock);
 }
