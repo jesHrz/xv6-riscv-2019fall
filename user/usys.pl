@@ -40,3 +40,6 @@ entry("ntas");
 entry("crash");
 entry("mount");
 entry("umount");
+# lab6: syscall of signal
+entry("sigalarm");
+entry("sigreturn");

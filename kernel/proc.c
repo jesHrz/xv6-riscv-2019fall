@@ -123,7 +123,26 @@ found:
   p->context.ra = (uint64)forkret;
   p->context.sp = p->kstack + PGSIZE;
 
+  // initialize fields of lab 6
+  p->sigalarm_ticks = -1;
+  p->sigalarm_handler = 0;
+  p->ticks = 0;
+
   return p;
+}
+
+struct proc *
+findproc_alarm(void)
+{
+  struct proc *p;
+  for(p = proc; p < &proc[NPROC]; ++p) {
+    acquire(&p->lock);
+    if((p->state != UNUSED && p->state != ZOMBIE) && ~(p->sigalarm_ticks) && !p->sigalarm_state && ++(p->ticks) == p->sigalarm_ticks) {
+      return p;
+    }
+    release(&p->lock);
+  }
+  return 0;
 }
 
 // free a proc structure and the data hanging from it,

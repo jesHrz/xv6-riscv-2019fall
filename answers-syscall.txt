@@ -1,0 +1,4 @@
+1. registers a0-a7, fa0-fa7 will store the arguments. the second argument of printf is stored in a2
+2. function f is inlined during compilation
+3. 0x30 + 1584 = 0x660
+4. the next instruction after jarl, that is pc + 4
