@@ -23,3 +23,6 @@
 
 // System calls for labs
 #define SYS_ntas   22
+
+// Systemm calls for symlink, lab7
+#define SYS_symlink 23

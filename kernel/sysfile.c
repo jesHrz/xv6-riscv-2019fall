@@ -330,6 +330,47 @@ sys_open(void)
     return -1;
   }
 
+  if(!(omode & O_NOFOLLOW)) {
+    int cnt = 0;
+    int n_target;
+    char target[MAXPATH];
+    while(ip->type == T_SYMLINK && cnt < 10) {
+      readi(ip, 0, (uint64)&n_target, 0, sizeof(int));
+      if(n_target <= 0 || n_target >= MAXPATH) {
+        printf("open: illegal target path length: %d\n", n_target);
+        iunlockput(ip);
+        end_op(ROOTDEV);
+        return -1;
+      }
+      readi(ip, 0, (uint64)target, sizeof(int), n_target + 1);
+      iunlockput(ip);
+
+      if((ip = namei(target)) == 0) {
+        end_op(ROOTDEV);
+        return -1;
+      }
+
+      ilock(ip);
+      if(ip->type == T_DIR && omode != O_RDONLY){
+        iunlockput(ip);
+        end_op(ROOTDEV);
+        return -1;
+      }
+      if(ip->type == T_DEVICE && (ip->major < 0 || ip->major >= NDEV)){
+        iunlockput(ip);
+        end_op(ROOTDEV);
+        return -1;
+      }
+
+      cnt++;
+    }
+    if(cnt >= 10) {
+      iunlockput(ip);
+      end_op(ROOTDEV);
+      return -1;
+    }
+  }
+
   if(ip->type == T_DEVICE){
     f->type = FD_DEVICE;
     f->major = ip->major;
@@ -483,3 +524,42 @@ sys_pipe(void)
   return 0;
 }
 
+uint64
+sys_symlink(void)
+{
+  char target[MAXPATH], path[MAXPATH];
+  int n_target, n_path;
+  int fd;
+  struct file *f;
+  struct inode *ip;
+
+  if((n_target = argstr(0, target, MAXPATH)) < 0 || (n_path = argstr(1, path, MAXPATH)) < 0)
+    return -1;
+  
+  begin_op(ROOTDEV);
+
+  if((ip = create(path, T_SYMLINK, 0, 0)) == 0) {
+    end_op(ROOTDEV);
+    return -1;
+  }
+
+  if((f = filealloc()) == 0 || (fd = fdalloc(f)) < 0) {
+    if(f) fileclose(f);
+    iunlockput(ip);
+    end_op(ROOTDEV);
+    return -1;
+  }
+
+  f->type = FD_INODE;
+  f->ip = ip;
+  f->off = 0;
+  f->readable = 0;
+  f->writable = 0;
+
+  // ilock(ip);
+  writei(ip, 0, (uint64)&n_target, 0, sizeof(int));
+  writei(ip, 0, (uint64)target, sizeof(int), n_target + 1);
+  iunlockput(ip);
+  end_op(ROOTDEV);
+  return 0;
+}
