@@ -2,3 +2,11 @@
 #define O_WRONLY  0x001
 #define O_RDWR    0x002
 #define O_CREATE  0x200
+
+// marcos for mmap
+// prot
+#define PROT_READ   0x001
+#define PROT_WRITE  0x002
+// flags
+#define MAP_SHARED   0x001
+#define MAP_PRIVATE 0x002

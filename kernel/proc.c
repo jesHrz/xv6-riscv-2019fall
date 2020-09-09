@@ -277,6 +277,13 @@ fork(void)
       np->ofile[i] = filedup(p->ofile[i]);
   np->cwd = idup(p->cwd);
 
+  for(i = 0; i < NMAPS; i++) {
+    if(p->mps[i].used) {
+      np->mps[i] = p->mps[i];
+      filedup(np->mps[i].file);
+    }
+  }
+
   safestrcpy(np->name, p->name, sizeof(p->name));
 
   pid = np->pid;
@@ -331,6 +338,20 @@ exit(int status)
       struct file *f = p->ofile[fd];
       fileclose(f);
       p->ofile[fd] = 0;
+    }
+  }
+
+  pte_t *pte;
+  for(int i = 0; i < NMAPS; i++) {
+    if(p->mps[i].used) {
+      p->mps[i].used = 0;
+      fileclose(p->mps[i].file);
+      for(uint64 va = PGROUNDDOWN(p->mps[i].addr); va < p->mps[i].addr + p->mps[i].len; va += PGSIZE) {
+        if((pte = walk(p->pagetable, va, 0)) && (*pte & PTE_V)) {
+          kfree((void *)PTE2PA(*pte));
+          uvmunmap(p->pagetable, va, PGSIZE, 0);
+        }
+      }
     }
   }
 

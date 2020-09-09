@@ -80,6 +80,22 @@ struct trapframe {
   /* 280 */ uint64 t6;
 };
 
+#define MAPBASE 0x85000000
+#define MAPSIZE 274432      // Max file size: (12 + 256) * 1024 = 274432
+#define NMAPS   32
+#define MAPADDR(i)  (MAPBASE + (i) * MAPSIZE)
+#define MAPEND  MAPADDR(NMAPS) 
+
+struct mapinfo {
+  uint64 addr;
+  uint len;
+  uint prot;
+  uint flags;
+  uint offset;
+  uint used; 
+  struct file *file;
+};
+
 enum procstate { UNUSED, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 
 // Per-process state
@@ -102,5 +118,6 @@ struct proc {
   struct context context;      // swtch() here to run process
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
+  struct mapinfo mps[NMAPS];    // lab9: track of what mmap has mapped for each process
   char name[16];               // Process name (debugging)
 };

@@ -5,6 +5,10 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "defs.h"
+#include "fs.h"
+#include "sleeplock.h"
+#include "file.h"
+#include "fcntl.h"
 
 struct spinlock tickslock;
 uint ticks;
@@ -70,12 +74,56 @@ usertrap(void)
     syscall();
   } else if((which_dev = devintr()) != 0){
     // ok
+  } else if(r_scause() == 13 || r_scause() == 15) {
+    uint64 fault_va = r_stval();
+    if(MAPBASE <= fault_va && fault_va < MAPEND) {
+      // mmap
+      struct mapinfo *mp = &p->mps[(fault_va - MAPBASE) / MAPSIZE];
+      if(!mp->used || fault_va >= mp->addr + mp->len) {
+        printf("usertrap(): invaild mapinfo\n");
+        p->killed = 1;
+        goto end;
+      }
+
+      struct inode *ip = mp->file->ip;
+      uint fstart = PGROUNDDOWN(fault_va) - mp->addr + mp->offset;
+      uint rsize = PGSIZE;
+      if(fstart + rsize >= ip->size) {
+        rsize = ip->size - fstart;
+      }
+
+      char *mem = kalloc();
+      if(mem == 0) {
+        printf("usertrap(): OOM\n");
+        p->killed = 1;
+        goto end;
+      }
+
+           int flags = PTE_U;
+      if(mp->prot & PROT_READ)
+        flags |= PTE_R;
+      if(mp->prot & PROT_WRITE)
+        flags |= PTE_W;
+
+      if(mappages(p->pagetable, PGROUNDDOWN(fault_va), PGSIZE, (uint64) mem, flags) != 0) {
+        printf("usertrap(): mappages err\n");
+        kfree(mem);
+        p->killed = 1;
+        goto end;
+      }
+
+      memset(mem, 0, PGSIZE);
+      ilock(ip);
+      readi(ip, 0, (uint64)mem, fstart, rsize);
+      iunlock(ip);
+    }
   } else {
     printf("usertrap(): unexpected scause %p (%s) pid=%d\n", r_scause(), scause_desc(r_scause()), p->pid);
     printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
     p->killed = 1;
   }
 
+end:
   if(p->killed)
     exit(-1);
 
